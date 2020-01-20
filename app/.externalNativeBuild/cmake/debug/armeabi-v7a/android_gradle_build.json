@@ -1,0 +1,41 @@
+{
+  "stringTable": {
+    "0": "F:/appdev/ncnn-fastsal/app/.externalNativeBuild/cmake/debug/armeabi-v7a",
+    "1": "--target=armv7-none-linux-androideabi16 --gcc-toolchain=C:/Users/halla/AppData/Local/Android/Sdk/ndk-bundle/toolchains/llvm/prebuilt/windows-x86_64 --sysroot=C:/Users/halla/AppData/Local/Android/Sdk/ndk-bundle/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Dfastsal_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -march=armv7-a -mthumb -Wa,--noexecstack -Wformat -Werror=format-security -std=c++11 -fopenmp -O0 -fno-limit-debug-info -fPIC",
+    "2": "-g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -march=armv7-a -mthumb -Wa,--noexecstack -Wformat -Werror=format-security  -std=c++11 -fopenmp -O0 -fno-limit-debug-info  -fPIC  "
+  },
+  "buildFiles": [
+    "C:\\Users\\halla\\AppData\\Local\\Android\\Sdk\\ndk-bundle\\build\\cmake\\android.toolchain.cmake",
+    "C:\\Users\\halla\\AppData\\Local\\Android\\Sdk\\ndk-bundle\\build\\cmake\\platforms.cmake",
+    "F:\\appdev\\ncnn-fastsal\\app\\CMakeLists.txt"
+  ],
+  "cleanCommands": [
+    "C:\\Users\\halla\\AppData\\Local\\Android\\Sdk\\cmake\\3.10.2.4988404\\bin\\cmake.exe --build F:\\appdev\\ncnn-fastsal\\app\\.externalNativeBuild\\cmake\\debug\\armeabi-v7a --target clean"
+  ],
+  "libraries": {
+    "fastsal-Debug-armeabi-v7a": {
+      "buildCommand": "C:\\Users\\halla\\AppData\\Local\\Android\\Sdk\\cmake\\3.10.2.4988404\\bin\\cmake.exe --build F:\\appdev\\ncnn-fastsal\\app\\.externalNativeBuild\\cmake\\debug\\armeabi-v7a --target fastsal",
+      "buildType": "debug",
+      "toolchain": "1636109537",
+      "abi": "armeabi-v7a",
+      "artifactName": "fastsal",
+      "files": [
+        {
+          "src": "F:\\appdev\\ncnn-fastsal\\app\\src\\main\\cpp\\fastsal.cpp",
+          "flagsOrdinal": 2,
+          "workingDirectoryOrdinal": 0
+        }
+      ],
+      "output": "F:\\appdev\\ncnn-fastsal\\app\\build\\intermediates\\cmake\\debug\\obj\\armeabi-v7a\\libfastsal.so"
+    }
+  },
+  "toolchains": {
+    "1636109537": {
+      "cppCompilerExecutable": "C:\\Users\\halla\\AppData\\Local\\Android\\Sdk\\ndk-bundle\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

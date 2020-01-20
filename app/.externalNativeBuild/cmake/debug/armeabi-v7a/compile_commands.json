@@ -1,0 +1,7 @@
+[
+{
+  "directory": "F:/appdev/ncnn-fastsal/app/.externalNativeBuild/cmake/debug/armeabi-v7a",
+  "command": "C:\\Users\\halla\\AppData\\Local\\Android\\Sdk\\ndk-bundle\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=armv7-none-linux-androideabi16 --gcc-toolchain=C:/Users/halla/AppData/Local/Android/Sdk/ndk-bundle/toolchains/llvm/prebuilt/windows-x86_64 --sysroot=C:/Users/halla/AppData/Local/Android/Sdk/ndk-bundle/toolchains/llvm/prebuilt/windows-x86_64/sysroot  -Dfastsal_EXPORTS  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -march=armv7-a -mthumb -Wa,--noexecstack -Wformat -Werror=format-security  -std=c++11 -fopenmp -O0 -fno-limit-debug-info  -fPIC   -o CMakeFiles\\fastsal.dir\\src\\main\\cpp\\fastsal.cpp.o -c F:\\appdev\\ncnn-fastsal\\app\\src\\main\\cpp\\fastsal.cpp",
+  "file": "F:/appdev/ncnn-fastsal/app/src/main/cpp/fastsal.cpp"
+}
+]
