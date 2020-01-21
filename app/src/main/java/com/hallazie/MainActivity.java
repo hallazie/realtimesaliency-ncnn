@@ -6,6 +6,12 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -50,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         show_image = (ImageView) findViewById(R.id.show_image);
-//        surface_view = (SurfaceView) findViewById(R.id.surface_view);
         use_photo = (Button) findViewById(R.id.use_photo);
         try
         {
@@ -184,14 +189,53 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+//    private void inference_saliency(String image_path){
+//        Bitmap bmp = PhotoUtil.getScaleBitmap(image_path);
+//        Bitmap rgba = bmp.copy(Bitmap.Config.ARGB_8888, true);
+//        Bitmap input_bmp = Bitmap.createScaledBitmap(rgba, ddims[2], ddims[3], false);
+//        Bitmap output_bmp = Bitmap.createBitmap(input_bmp.getWidth(), input_bmp.getHeight(), Bitmap.Config.ALPHA_8);
+//        Bitmap show_bmp = Bitmap.createBitmap(input_bmp.getWidth(), input_bmp.getHeight(), Bitmap.Config.ARGB_8888);
+//        Bitmap final_bmp = Bitmap.createBitmap(input_bmp.getWidth(), input_bmp.getHeight(), Bitmap.Config.ARGB_8888);
+//        show_bmp.eraseColor(Color.RED);
+//        Canvas showCanvas = new Canvas(show_bmp);
+//        Paint paint = new Paint();
+//        paint.setFilterBitmap(false);
+//        showCanvas.drawBitmap(input_bmp, 0, 0, paint);
+//        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+//        showCanvas.drawBitmap(output_bmp, 0, 0, paint);
+//        paint.setXfermode(null);
+//        try {
+//            fastsal.Detect(input_bmp, output_bmp);
+//            Log.d("run detection model", "detection finished");
+////            show_image.setImageBitmap(output_bmp);
+//            show_image.setImageDrawable(new BitmapDrawable(getResources(), show_bmp));
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
+
     private void inference_saliency(String image_path){
+        long startTime;
+        long endTime;
         Bitmap bmp = PhotoUtil.getScaleBitmap(image_path);
         Bitmap rgba = bmp.copy(Bitmap.Config.ARGB_8888, true);
         Bitmap input_bmp = Bitmap.createScaledBitmap(rgba, ddims[2], ddims[3], false);
+        Bitmap output_bmp = Bitmap.createBitmap(input_bmp.getWidth(), input_bmp.getHeight(), Bitmap.Config.ALPHA_8);
         try {
-            fastsal.Detect(input_bmp);
-            Log.d("run detection model", "detection finished");
-            show_image.setImageBitmap(input_bmp);
+            startTime = System.currentTimeMillis();
+            fastsal.Detect(input_bmp, output_bmp);
+            endTime = System.currentTimeMillis();
+            Log.d("runtime", "detect: "+(endTime - startTime));
+
+            startTime = System.currentTimeMillis();
+            Bitmap show_bmp = PhotoUtil.mergeAlpha(input_bmp, output_bmp);
+            endTime = System.currentTimeMillis();
+            Log.d("runtime", "merge: "+(endTime - startTime));
+
+            startTime = System.currentTimeMillis();
+            show_image.setImageBitmap(show_bmp);
+            endTime = System.currentTimeMillis();
+            Log.d("runtime", "showing: "+(endTime - startTime));
         } catch (Exception e) {
             e.printStackTrace();
         }

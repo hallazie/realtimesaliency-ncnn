@@ -52,38 +52,36 @@ Java_com_example_che_mobilenetssd_1demo_FastSal_Init(JNIEnv *env, jobject obj, j
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_example_che_mobilenetssd_1demo_FastSal_Detect(JNIEnv* env, jobject thiz, jobject bitmap)
+Java_com_example_che_mobilenetssd_1demo_FastSal_Detect(JNIEnv* env, jobject thiz, jobject bitmap, jobject bitmapOut)
 {
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "1");
     ncnn::Mat in;
     AndroidBitmapInfo info;
     AndroidBitmap_getInfo(env, bitmap, &info);
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "2");
     int width = info.width;
     int height = info.height;
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "3");
     void* indata;
 
     AndroidBitmap_lockPixels(env, bitmap, &indata);
     in = ncnn::Mat::from_pixels((const unsigned char*)indata, ncnn::Mat::PIXEL_RGBA2RGB, width, height);
     AndroidBitmap_unlockPixels(env, bitmap);
 
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "in dims: %d, height: %d, width: %d, channel: %d", in.dims, in.h, in.w, in.c);
 
     // ncnn_net
     const float mean_vals[3] = {255*0.485f, 255*0.456f, 255*0.406f};
     const float std_vals[3] = {1.0f/(255 * 0.229f), 1.0f/(255 * 0.224f), 1.0f/(255 * 0.225f)};
     in.substract_mean_normalize(mean_vals, std_vals);// 归一化
 
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "normed dims: %d, height: %d, width: %d, channel: %d", in.dims, in.h, in.w, in.c);
 
-
-    ncnn::Extractor ex = ncnn_net.create_extractor();//前向传播
-    ex.input(fastsal_param_id::BLOB_input0, in);
+    clock_t start,end;
     ncnn::Mat out;
-    ex.extract(fastsal_param_id::BLOB_output0, out);
+    ncnn::Extractor ex = ncnn_net.create_extractor();//前向传播
 
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "out dims: %d, height: %d, width: %d, channel: %d", out.dims, out.h, out.w, out.c);
+    start = clock();
+    ex.input(fastsal_param_id::BLOB_input0, in);
+    ex.extract(fastsal_param_id::BLOB_output0, out);
+    end = clock();
+    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "model runtime: %f", ((float)(end-start)*1000/CLOCKS_PER_SEC));
+
 
     float min = 999.0f;
     float max = -999.0f;
@@ -103,19 +101,13 @@ Java_com_example_che_mobilenetssd_1demo_FastSal_Detect(JNIEnv* env, jobject thiz
         }
     }
 
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "%f", min);
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "%f", max);
-
 //        out.to_android_bitmap(env, bitmap, ncnn::Mat::PIXEL_GRAY);
 
-    int type = ncnn::Mat::PIXEL_RGBA;
+    int type = ncnn::Mat::PIXEL_GRAY;
     void* data;
-    AndroidBitmap_lockPixels(env, bitmap, &data);
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "unlocking width: %d, height: %d", width, height);
+    AndroidBitmap_lockPixels(env, bitmapOut, &data);
     out.to_pixels_resize((unsigned char*)data, type, width, height);
-    AndroidBitmap_unlockPixels(env, bitmap);
-
-    __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "finished...");
+    AndroidBitmap_unlockPixels(env, bitmapOut);
     return JNI_TRUE;
 }
 

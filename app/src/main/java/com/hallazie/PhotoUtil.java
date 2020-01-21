@@ -6,8 +6,11 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.net.Uri;
 import android.provider.MediaStore;
+import android.util.Log;
 
 public class PhotoUtil {
     // get picture in photo
@@ -32,6 +35,18 @@ public class PhotoUtil {
         return result;
     }
 
+    public static Bitmap mergeAlpha(Bitmap source, Bitmap mask){
+        Bitmap result = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.ARGB_8888);
+
+        for(int i=0; i<source.getWidth(); i++){
+            for(int j=0; j<source.getHeight(); j++){
+                result.setPixel(i, j, source.getPixel(i, j) + mask.getPixel(i, j));
+            }
+        }
+
+        return result;
+    }
+
     // compress picture
     public static Bitmap getScaleBitmap(String filePath) {
         BitmapFactory.Options opt = new BitmapFactory.Options();
@@ -53,6 +68,14 @@ public class PhotoUtil {
         }
         opt.inJustDecodeBounds = false;
         return BitmapFactory.decodeFile(filePath, opt);
+    }
+
+    public static Bitmap overlay(Bitmap bmp1, Bitmap bmp2) {
+        Bitmap bmOverlay = Bitmap.createBitmap(bmp1.getWidth(), bmp1.getHeight(), bmp1.getConfig());
+        Canvas canvas = new Canvas(bmOverlay);
+        canvas.drawBitmap(bmp1, new Matrix(), null);
+        canvas.drawBitmap(bmp2, 0, 0, null);
+        return bmOverlay;
     }
 }
 
