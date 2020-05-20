@@ -1,2 +1,3 @@
-# realtimesaliency-ncnn
-real time saliency android app with ncnn implementation
+# Real Time Saliency Android Demo
+
+redo from the top
