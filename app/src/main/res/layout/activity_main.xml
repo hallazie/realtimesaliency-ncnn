@@ -6,20 +6,8 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.camerakit.CameraKitView
-        android:id="@+id/camera"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:adjustViewBounds="true"
-        android:keepScreenOn="true"
-        app:camera_flash="auto"
-        app:camera_facing="back"
-        app:camera_focus="continuous"
-        app:camera_permissions="camera"
-        tools:ignore="MissingConstraints" />
-
     <Button
-        android:id="@+id/button"
+        android:id="@+id/switcher"
         android:layout_width="320dp"
         android:layout_height="50dp"
         android:text="开始检测"
@@ -29,5 +17,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.98" />
+
+    <com.camerakit.CameraKitView
+        android:id="@+id/camera"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:keepScreenOn="true"
+        app:camera_facing="back"
+        app:camera_flash="auto"
+        app:camera_focus="continuous"
+        app:camera_permissions="camera"
+        tools:ignore="MissingConstraints" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
