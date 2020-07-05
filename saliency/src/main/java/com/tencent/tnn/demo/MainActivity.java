@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.tencent.tnn.demo.StreamFaceDetector.StreamFaceDetectFragment;
+import com.tencent.tnn.demo.StreamSaliencyPredictor.StreamSaliencyPredictFragment;
 import com.tencent.tnn.demo.common.activity.DemoBaseActivity;
 
 
@@ -31,7 +32,9 @@ public class MainActivity extends DemoBaseActivity {
     }
 
     public void updateUI() {
-        Fragment fragment = new StreamFaceDetectFragment();
+//        Fragment fragment = new StreamFaceDetectFragment();
+        Log.d(TAG, "using stream SALIENCY !!!!!!!!!!!!");
+        Fragment fragment = new StreamSaliencyPredictFragment();
         getFragmentManager().beginTransaction().add(R.id.fragment_container, fragment).commit();
     }
 
