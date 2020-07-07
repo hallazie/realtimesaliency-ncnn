@@ -43,20 +43,6 @@ JNIEXPORT JNICALL jint TNN_SALIENCY_PREDICTOR(init)(JNIEnv *env, jobject thiz, j
         LOGE("detector init failed %d", (int)status);
         return -1;
     }
-    TNN_NS::BenchOption bench_option;
-    bench_option.forward_count = 1;
-    gDetector->SetBenchOption(bench_option);
-    if (clsFaceInfo == NULL)
-    {
-        clsFaceInfo = static_cast<jclass>(env->NewGlobalRef(env->FindClass("com/tencent/tnn/demo/FaceDetector$FaceInfo")));
-        midconstructorFaceInfo = env->GetMethodID(clsFaceInfo, "<init>", "()V");
-        fidx1 = env->GetFieldID(clsFaceInfo, "x1" , "F");
-        fidy1 = env->GetFieldID(clsFaceInfo, "y1" , "F");
-        fidx2 = env->GetFieldID(clsFaceInfo, "x2" , "F");
-        fidy2 = env->GetFieldID(clsFaceInfo, "y2" , "F");
-        fidscore = env->GetFieldID(clsFaceInfo, "score" , "F");
-        fidlandmarks = env->GetFieldID(clsFaceInfo, "landmarks" , "[F");
-    }
 
     return 0;
 }
@@ -69,7 +55,7 @@ JNIEXPORT JNICALL jint TNN_SALIENCY_PREDICTOR(deinit)(JNIEnv *env, jobject thiz)
 }
 
 
-JNIEXPORT JNICALL jobjectArray TNN_SALIENCY_PREDICTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jobject bitmapOut)
+JNIEXPORT JNICALL jint TNN_SALIENCY_PREDICTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jobject bitmapOut)
 {
     jobjectArray faceInfoArray;
     auto asyncRefDetector = gDetector;
@@ -84,10 +70,12 @@ JNIEXPORT JNICALL jobjectArray TNN_SALIENCY_PREDICTOR(predictFromStream)(JNIEnv 
     unsigned char *rgbData = new unsigned char[height * width * 3];
     yuv420sp_to_rgba_fast_asm((const unsigned char*)yuvData, height, width, (unsigned char*)rgbaData);
 
+    TNN_NS::Mat retMap;
     TNN_NS::DeviceType dt = TNN_NS::DEVICE_ARM;
     TNN_NS::DimsVector target_dims = {1, 3, height, width};
     auto rgbTNN = std::make_shared<TNN_NS::Mat>(dt, TNN_NS::N8UC4, target_dims, rgbaData);
-    TNN_NS::Status status = asyncRefDetector->Detect(rgbTNN, width, height, faceInfoList);
+    TNN_NS::Status status = asyncRefDetector->Detect(rgbTNN, width, height, retMap);
+    LOGE("!!!!!!!!!!!!!ret map: %d", retMap.size());
     delete [] yuvData;
     delete [] rgbaData;
     if (status != TNN_NS::TNN_OK) {
@@ -95,31 +83,6 @@ JNIEXPORT JNICALL jobjectArray TNN_SALIENCY_PREDICTOR(predictFromStream)(JNIEnv 
         return 0;
     }
 
-    LOGI("bench result: %s", asyncRefDetector->GetBenchResult().Description().c_str());
-    char temp[128] = "";
-    sprintf(temp, " device: %s \ntime:", (gComputeUnitType==0)?"arm":"gpu");
-    std::string computeUnitTips(temp);
-    std::string resultTips = std::string(computeUnitTips + asyncRefDetector->GetBenchResult().Description());
-    setBenchResult(resultTips);
-    LOGI("face info list size %d", faceInfoList.size());
-    // TODO: copy face info list
-    if (faceInfoList.size() > 0) {
-        faceInfoArray = env->NewObjectArray(faceInfoList.size(), clsFaceInfo, NULL);
-        for (int i = 0; i < faceInfoList.size(); i++) {
-            jobject objFaceInfo = env->NewObject(clsFaceInfo, midconstructorFaceInfo);
-            int landmarkNum = sizeof(faceInfoList[i].landmarks)/sizeof(float);
-            LOGI("face[%d] %f %f %f %f score %f landmark size %d", i, faceInfoList[i].x1, faceInfoList[i].y1, faceInfoList[i].x2, faceInfoList[i].y2, faceInfoList[i].score, landmarkNum);
-            env->SetFloatField(objFaceInfo, fidx1, faceInfoList[i].x1);
-            env->SetFloatField(objFaceInfo, fidy1, faceInfoList[i].y1);
-            env->SetFloatField(objFaceInfo, fidx2, faceInfoList[i].x2);
-            env->SetFloatField(objFaceInfo, fidy2, faceInfoList[i].y2);
-            env->SetFloatField(objFaceInfo, fidscore, faceInfoList[i].score);
 
-            env->SetObjectArrayElement(faceInfoArray, i, objFaceInfo);
-            env->DeleteLocalRef(objFaceInfo);
-        }
-        return faceInfoArray;
-    } else {
-        return 0;
-    }
+
 }

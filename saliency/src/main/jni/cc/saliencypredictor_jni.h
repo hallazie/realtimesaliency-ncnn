@@ -11,7 +11,7 @@ extern "C" {
 #endif
 JNIEXPORT JNICALL jint TNN_SALIENCY_PREDICTOR(init)(JNIEnv *env, jobject thiz, jstring modelPath, jint width, jint height);
 JNIEXPORT JNICALL jint TNN_SALIENCY_PREDICTOR(deinit)(JNIEnv *env, jobject thiz);
-JNIEXPORT JNICALL jboolean TNN_SALIENCY_PREDICTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jobject bitmapOut);
+JNIEXPORT JNICALL jint TNN_SALIENCY_PREDICTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jobject bitmapOut);
 
 #ifdef __cplusplus
 }
