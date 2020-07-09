@@ -1,5 +1,6 @@
 package com.tencent.tnn.demo.StreamFaceDetector;
 
+import android.graphics.Bitmap;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.util.Log;
@@ -65,14 +66,16 @@ public class StreamFaceDetectFragment extends BaseFragment {
 
         //copy detect model to sdcard
         String[] modelPathsDetector = {
-                "version-slim-320_simplified.tnnmodel",
-                "version-slim-320_simplified.tnnproto",
+//                "version-slim-320_simplified.tnnmodel",
+//                "version-slim-320_simplified.tnnproto",
+                "fastsal.tnnmodel",
+                "fastsal.tnnproto",
         };
 
         for (int i = 0; i < modelPathsDetector.length; i++) {
             String modelFilePath = modelPathsDetector[i];
             String interModelFilePath = targetDir + "/" + modelFilePath ;
-            FileUtils.copyAsset(getActivity().getAssets(), "face_detector/"+modelFilePath, interModelFilePath);
+            FileUtils.copyAsset(getActivity().getAssets(), "fastsal/"+modelFilePath, interModelFilePath);
         }
         return targetDir;
     }
@@ -226,7 +229,8 @@ public class StreamFaceDetectFragment extends BaseFragment {
                     mCameraWidth = parameters.getPreviewSize().width;
                     mCameraHeight = parameters.getPreviewSize().height;
                     String modelPath = initModel();
-                    int ret = mFaceDetector.init(modelPath, mCameraHeight, mCameraWidth, 0.975f, 0.23f, 1, 1);
+//                    int ret = mFaceDetector.init(modelPath, mCameraHeight, mCameraWidth, 0.975f, 0.23f, 1, 1);
+                    int ret = mFaceDetector.init(modelPath, mCameraHeight, mCameraWidth);
                     if (ret == 0) {
                         mIsDetectingFace = true;
                     } else {
@@ -252,13 +256,15 @@ public class StreamFaceDetectFragment extends BaseFragment {
                     public void onPreviewFrame(byte[] data, Camera camera) {
                         if (mIsDetectingFace) {
                             Camera.Parameters mCameraParameters = camera.getParameters();
-                            FaceDetector.FaceInfo[] faceInfoList = mFaceDetector.detectFromStream(data, mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, mRotate);
-                            Log.i(TAG, "detect from stream ret " + faceInfoList);
-                            int faceCount = 0;
-                            if (faceInfoList != null) {
-                                faceCount = faceInfoList.length;
-                            }
-                            mDrawView.addFaceRect(faceInfoList, mCameraParameters.getPreviewSize().height, mCameraParameters.getPreviewSize().width);
+                            Bitmap bit = Bitmap.createBitmap(mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, Bitmap.Config.ARGB_8888);;
+                            int result = mFaceDetector.predictFromStream(data, mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, bit);
+//                            FaceDetector.FaceInfo[] faceInfoList = mFaceDetector.detectFromStream(data, mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, mRotate);
+//                            Log.i(TAG, "detect from stream ret " + faceInfoList);
+//                            int faceCount = 0;
+//                            if (faceInfoList != null) {
+//                                faceCount = faceInfoList.length;
+//                            }
+//                            mDrawView.addFaceRect(faceInfoList, mCameraParameters.getPreviewSize().height, mCameraParameters.getPreviewSize().width);
 
                         }
                         else {

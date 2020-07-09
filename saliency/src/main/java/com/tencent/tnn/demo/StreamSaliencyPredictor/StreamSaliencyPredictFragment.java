@@ -228,7 +228,7 @@ public class StreamSaliencyPredictFragment extends BaseFragment {
                     mCameraWidth = parameters.getPreviewSize().width;
                     mCameraHeight = parameters.getPreviewSize().height;
                     String modelPath = initModel();
-                    int ret = mSaliencyPredictor.init(modelPath, mCameraHeight, mCameraWidth);
+                    int ret = mSaliencyPredictor.init(modelPath, mCameraWidth, mCameraHeight);
                     if (ret == 0) {
                         mIsDetectingFace = true;
                     } else {

@@ -192,3 +192,8 @@ JNIEXPORT JNICALL jobjectArray TNN_FACE_DETECTOR(detectFromImage)(JNIEnv *env, j
 
     return 0;
 }
+
+JNIEXPORT JNICALL jint TNN_FACE_DETECTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jobject outBitmap)
+{
+    return 0;
+}

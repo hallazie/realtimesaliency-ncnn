@@ -32,9 +32,9 @@ public class MainActivity extends DemoBaseActivity {
     }
 
     public void updateUI() {
-//        Fragment fragment = new StreamFaceDetectFragment();
         Log.d(TAG, "using stream SALIENCY !!!!!!!!!!!!");
-        Fragment fragment = new StreamSaliencyPredictFragment();
+//        Fragment fragment = new StreamSaliencyPredictFragment();
+        Fragment fragment = new StreamFaceDetectFragment();
         getFragmentManager().beginTransaction().add(R.id.fragment_container, fragment).commit();
     }
 
