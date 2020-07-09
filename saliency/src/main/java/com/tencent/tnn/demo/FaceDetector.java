@@ -15,5 +15,5 @@ public class FaceDetector {
     public native int init(String modelPath, int width, int height);
     public native int deinit();
     public native FaceInfo[] detectFromStream(byte[] yuv420sp, int width, int height, int rotate);
-    public native int predictFromStream(byte[] yuv420sp, int width, int height, Bitmap outputMap);
+    public native int predictFromStream(byte[] yuv420sp, int width, int height, int rotate, Bitmap outputMap);
 }

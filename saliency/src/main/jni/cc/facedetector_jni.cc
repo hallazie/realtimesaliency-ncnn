@@ -3,6 +3,7 @@
 //
 #include "facedetector_jni.h"
 #include "UltraFaceDetector.h"
+#include "SaliencyPredictor.h"
 #include "kannarotate.h"
 #include "yuv420sp_to_rgb_fast_asm.h"
 #include <jni.h>
@@ -10,6 +11,7 @@
 #include <android/bitmap.h>
 
 static std::shared_ptr<UltraFaceDetector> gDetector;
+static std::shared_ptr<SaliencyPredictor> sDetector;
 static int gComputeUnitType = 0; // 0 is cpu, 1 is gpu
 static jclass clsFaceInfo;
 static jmethodID midconstructorFaceInfo;
@@ -25,47 +27,38 @@ JNIEXPORT JNICALL jint TNN_FACE_DETECTOR(init)(JNIEnv *env, jobject thiz, jstrin
 {
     // Reset bench description
     setBenchResult("");
-    std::vector<int> nchw = {1, 3, height, width};
+//    std::vector<int> nchw = {1, 3, height, width};
+    std::vector<int> nchw = {1, 1, height, width};
     gDetector = std::make_shared<UltraFaceDetector>(width, height, 1, 0.7);
+    sDetector = std::make_shared<SaliencyPredictor>();
     std::string protoContent, modelContent;
     std::string modelPathStr(jstring2string(env, modelPath));
-    protoContent = fdLoadFile(modelPathStr + "/version-slim-320_simplified.tnnproto");
-    modelContent = fdLoadFile(modelPathStr + "/version-slim-320_simplified.tnnmodel");
+//    protoContent = fdLoadFile(modelPathStr + "/version-slim-320_simplified.tnnproto");
+//    modelContent = fdLoadFile(modelPathStr + "/version-slim-320_simplified.tnnmodel");
+    protoContent = fdLoadFile(modelPathStr + "/fastsal.tnnproto");
+    modelContent = fdLoadFile(modelPathStr + "/fastsal.tnnmodel");
     LOGI("proto content size %d model content size %d", protoContent.length(), modelContent.length());
 
     TNN_NS::Status status;
     gComputeUnitType = computUnitType;
     if (gComputeUnitType == 0 ) {
-        gDetector->Init(protoContent, modelContent, "", TNN_NS::TNNComputeUnitsCPU, nchw);
+//        gDetector->Init(protoContent, modelContent, "", TNN_NS::TNNComputeUnitsCPU, nchw);
+        sDetector->Init(protoContent, modelContent, "", TNN_NS::TNNComputeUnitsCPU, nchw);
     } else {
-        gDetector->Init(protoContent, modelContent, "", TNN_NS::TNNComputeUnitsGPU, nchw);
+//        gDetector->Init(protoContent, modelContent, "", TNN_NS::TNNComputeUnitsGPU, nchw);
+        sDetector->Init(protoContent, modelContent, "", TNN_NS::TNNComputeUnitsGPU, nchw);
     }
     if (status != TNN_NS::TNN_OK) {
         LOGE("detector init failed %d", (int)status);
         return -1;
     }
-    TNN_NS::BenchOption bench_option;
-    bench_option.forward_count = 1;
-    gDetector->SetBenchOption(bench_option);
-    if (clsFaceInfo == NULL)
-    {
-        clsFaceInfo = static_cast<jclass>(env->NewGlobalRef(env->FindClass("com/tencent/tnn/demo/FaceDetector$FaceInfo")));
-        midconstructorFaceInfo = env->GetMethodID(clsFaceInfo, "<init>", "()V");
-        fidx1 = env->GetFieldID(clsFaceInfo, "x1" , "F");
-        fidy1 = env->GetFieldID(clsFaceInfo, "y1" , "F");
-        fidx2 = env->GetFieldID(clsFaceInfo, "x2" , "F");
-        fidy2 = env->GetFieldID(clsFaceInfo, "y2" , "F");
-        fidscore = env->GetFieldID(clsFaceInfo, "score" , "F");
-        fidlandmarks = env->GetFieldID(clsFaceInfo, "landmarks" , "[F");
-    }
-
     return 0;
 }
 
 JNIEXPORT JNICALL jint TNN_FACE_DETECTOR(deinit)(JNIEnv *env, jobject thiz)
 {
-
     gDetector = nullptr;
+    sDetector = nullptr;
     return 0;
 }
 
@@ -193,7 +186,34 @@ JNIEXPORT JNICALL jobjectArray TNN_FACE_DETECTOR(detectFromImage)(JNIEnv *env, j
     return 0;
 }
 
-JNIEXPORT JNICALL jint TNN_FACE_DETECTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jobject outBitmap)
+JNIEXPORT JNICALL jint TNN_FACE_DETECTOR(predictFromStream)(JNIEnv *env, jobject thiz, jbyteArray yuv420sp, jint width, jint height, jint rotate, jobject outBitmap)
 {
+    jobjectArray faceInfoArray;
+    auto asyncRefDetector = sDetector;
+    LOGI("detect from stream %d x %d", width, height);
+    unsigned char *yuvData = new unsigned char[height * width * 3 / 2];
+    jbyte *yuvDataRef = env->GetByteArrayElements(yuv420sp, 0);
+    int ret = kannarotate_yuv420sp((const unsigned char*)yuvDataRef, (int)width, (int)height, (unsigned char*)yuvData, (int)rotate);
+    env->ReleaseByteArrayElements(yuv420sp, yuvDataRef, 0);
+    unsigned char *rgbaData = new unsigned char[height * width * 4];
+    unsigned char *rgbData = new unsigned char[height * width * 3];
+    unsigned char *retData = new unsigned char[height * width];
+    yuv420sp_to_rgba_fast_asm((const unsigned char*)yuvData, height, width, (unsigned char*)rgbaData);
+//    stbi_write_jpg(rgba_image_name, height, width, 4, rgbaData, 95);
+    TNN_NS::DeviceType dt = TNN_NS::DEVICE_ARM;
+    TNN_NS::DimsVector target_dims = {1, 3, height, width};
+    TNN_NS::DimsVector output_dims = {1, 1, height, width};
+    auto rgbTNN = std::make_shared<TNN_NS::Mat>(dt, TNN_NS::N8UC4, target_dims, rgbaData);
+    auto retMat = std::make_shared<TNN_NS::Mat>(dt, TNN_NS::NGRAY, output_dims, retData);
+//    TNN_NS::Status status = asyncRefDetector->Detect(rgbTNN, width, height, retMat);
+    TNN_NS::Status status = 0;
+    delete [] yuvData;
+    delete [] rgbaData;
+    if (status != TNN_NS::TNN_OK) {
+        LOGE("failed to detect %d", (int)status);
+        return 0;
+    }else {
+        return 0;
+    }
     return 0;
 }

@@ -257,7 +257,7 @@ public class StreamFaceDetectFragment extends BaseFragment {
                         if (mIsDetectingFace) {
                             Camera.Parameters mCameraParameters = camera.getParameters();
                             Bitmap bit = Bitmap.createBitmap(mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, Bitmap.Config.ARGB_8888);;
-                            int result = mFaceDetector.predictFromStream(data, mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, bit);
+                            int result = mFaceDetector.predictFromStream(data, mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, mRotate, bit);
 //                            FaceDetector.FaceInfo[] faceInfoList = mFaceDetector.detectFromStream(data, mCameraParameters.getPreviewSize().width, mCameraParameters.getPreviewSize().height, mRotate);
 //                            Log.i(TAG, "detect from stream ret " + faceInfoList);
 //                            int faceCount = 0;
