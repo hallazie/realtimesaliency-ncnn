@@ -1,1 +1,2 @@
-include ':saliency', 'demo', ':library'
+rootProject.name='blankproject'
+include ':app'
