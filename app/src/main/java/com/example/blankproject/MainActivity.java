@@ -29,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private Button switcher;
     private Boolean showAttentionFlag = false;
     private Integer globalCount = 0;
+    private Runnable runnable;
+    private Handler handler = new Handler();
     private Bitmap sampleSaliencyBitmap = BitmapFactory.decodeStream(getClass().getResourceAsStream("/res/drawable/saliency.jpeg"));
     private Bitmap sampleLEDBitmap = BitmapFactory.decodeStream(getClass().getResourceAsStream("/res/drawable/led.png"));
 
@@ -41,24 +43,37 @@ public class MainActivity extends AppCompatActivity {
         attentionView.setAlpha(0.5f);
         switcher = findViewById(R.id.switcher);
 
+        runnable = new Runnable() {
+            int tick = 0;
+            public void run() {
+                if (tick % 2 == 0) {
+                    Bitmap newSample = setAlpha(sampleSaliencyBitmap);
+                    attentionView.setImageBitmap(newSample);
+                    Log.d("TAG", "startAsyncImageUpdate: using saliency map");
+                } else {
+                    Bitmap newSample = setAlpha(sampleLEDBitmap);
+                    attentionView.setImageBitmap(newSample);
+                    Log.d("TAG", "startAsyncImageUpdate: using LED map");
+                }
+                tick++;
+                handler.postDelayed(this, 250);
+            }
+        };
+
         switcher.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
                 showAttentionFlag = !showAttentionFlag;
                 if(showAttentionFlag){
                     switcher.setText("停止检测");
-//                    Bitmap newSample = setAlpha(sampleSaliencyBitmap);
-//                    attentionView.setImageBitmap(newSample);
                     startAsyncImageUpdate();
                 }else{
                     switcher.setText("开始检测");
+                    handler.removeCallbacks(runnable);
                     attentionView.setImageDrawable(null);
                 }
             }
         });
-
-
-
     }
 
     static Bitmap setAlpha(Bitmap bitmap){
@@ -88,24 +103,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void startAsyncImageUpdate(){
-
-        final Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            int tick = 0;
-            public void run() {
-                if (tick % 2 == 0) {
-                    Bitmap newSample = setAlpha(sampleSaliencyBitmap);
-                    attentionView.setImageBitmap(newSample);
-                    Log.d("TAG", "startAsyncImageUpdate: using saliency map");
-                } else {
-                    Bitmap newSample = setAlpha(sampleLEDBitmap);
-                    attentionView.setImageBitmap(newSample);
-                    Log.d("TAG", "startAsyncImageUpdate: using LED map");
-                }
-                tick++;
-                handler.postDelayed(this, 250);
-            }
-        }, 0);
+        this.handler.postDelayed(this.runnable, 0);
     }
 
     @Override
