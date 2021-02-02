@@ -3,6 +3,7 @@ package com.example.blankproject;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Camera;
@@ -20,6 +21,8 @@ import com.camerakit.CameraKitView;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
@@ -31,17 +34,30 @@ public class MainActivity extends AppCompatActivity {
     private Integer globalCount = 0;
     private Runnable runnable;
     private Handler handler = new Handler();
+    private FastSal fastsal = new FastSal();
     private Bitmap sampleSaliencyBitmap = BitmapFactory.decodeStream(getClass().getResourceAsStream("/res/drawable/saliency.jpeg"));
     private Bitmap sampleLEDBitmap = BitmapFactory.decodeStream(getClass().getResourceAsStream("/res/drawable/led.png"));
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        System.out.println("*********** INFO START ***********");
+        System.out.println(Build.CPU_ABI);
+        System.out.println(Build.CPU_ABI2);
+        System.out.println("*********** INFO END ***********");
+
         setContentView(R.layout.activity_main);
         cameraKitView = findViewById(R.id.camera);
         attentionView = findViewById(R.id.attention);
         attentionView.setAlpha(0.5f);
         switcher = findViewById(R.id.switcher);
+
+        try {
+            initFastSal();
+        } catch (IOException e) {
+            Log.e("MainActivity", "init FastSal Module error");
+        }
 
         runnable = new Runnable() {
             int tick = 0;
@@ -74,6 +90,28 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void initFastSal() throws IOException {
+        byte[] param = null;
+        byte[] bin = null;
+        {
+            InputStream assetsInputStream = getAssets().open("fastsal.param.bin");// param：  网络结构文件
+            int available = assetsInputStream.available();
+            param = new byte[available];
+            int byteCode = assetsInputStream.read(param);
+            assetsInputStream.close();
+        }
+        {
+            InputStream assetsInputStream = getAssets().open("fastsal.bin");//bin：   model文件
+            int available = assetsInputStream.available();
+            bin = new byte[available];
+            int byteCode = assetsInputStream.read(bin);
+            assetsInputStream.close();
+        }
+
+        boolean load_result = fastsal.Init(param, bin);
+        Log.d("load model", "fastsal load:" + load_result);
     }
 
     static Bitmap setAlpha(Bitmap bitmap){
