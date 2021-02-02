@@ -2,6 +2,7 @@ package com.example.blankproject;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Build;
 import android.graphics.Bitmap;
@@ -11,6 +12,8 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Message;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -31,13 +34,18 @@ public class MainActivity extends AppCompatActivity {
     private ImageView attentionView;
     private Button switcher;
     private Boolean showAttentionFlag = false;
-    private Integer globalCount = 0;
-    private Runnable runnable;
-    private Handler handler = new Handler();
-    private FastSal fastsal = new FastSal();
-    private Bitmap sampleSaliencyBitmap = BitmapFactory.decodeStream(getClass().getResourceAsStream("/res/drawable/saliency.jpeg"));
-    private Bitmap sampleLEDBitmap = BitmapFactory.decodeStream(getClass().getResourceAsStream("/res/drawable/led.png"));
 
+    private boolean runSaliency;
+    private HandlerThread backgroundThread;
+    private Handler backgroundHandler;
+    private final Object lock = new Object();
+
+    private int[] ddims = {1, 3, 320, 256};
+    private static Handler updateHandler;
+    private FastSal fastsal = new FastSal();
+
+
+    @SuppressLint("HandlerLeak")
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,33 +67,24 @@ public class MainActivity extends AppCompatActivity {
             Log.e("MainActivity", "init FastSal Module error");
         }
 
-        runnable = new Runnable() {
-            int tick = 0;
-            public void run() {
-                if (tick % 2 == 0) {
-                    Bitmap newSample = setAlpha(sampleSaliencyBitmap);
-                    attentionView.setImageBitmap(newSample);
-                    Log.d("TAG", "startAsyncImageUpdate: using saliency map");
-                } else {
-                    Bitmap newSample = setAlpha(sampleLEDBitmap);
-                    attentionView.setImageBitmap(newSample);
-                    Log.d("TAG", "startAsyncImageUpdate: using LED map");
-                }
-                tick++;
-                handler.postDelayed(this, 250);
-            }
-        };
-
         switcher.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
                 showAttentionFlag = !showAttentionFlag;
                 if(showAttentionFlag){
                     switcher.setText("停止检测");
-                    startAsyncImageUpdate();
+                    // startBackgroundThread();
+                    cameraKitView.captureImage(new CameraKitView.ImageCallback() {
+                        @Override
+                        public void onImage(CameraKitView cameraKitView, byte[] bytes) {
+                            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                            inferenceSaliency(bitmap);
+                        }
+                    });
                 }else{
                     switcher.setText("开始检测");
-                    handler.removeCallbacks(runnable);
+                    // stopBackgroundThread();
+                    // handler.removeCallbacks(runnable);
                     attentionView.setImageDrawable(null);
                 }
             }
@@ -114,6 +113,74 @@ public class MainActivity extends AppCompatActivity {
         Log.d("load model", "fastsal load:" + load_result);
     }
 
+    private void inferenceSaliency(Bitmap bmp){
+        long startTime;
+        long endTime;
+        Bitmap rgba = bmp.copy(Bitmap.Config.ARGB_8888, true);
+        Bitmap input_bmp = Bitmap.createScaledBitmap(rgba, ddims[2], ddims[3], false);
+        Bitmap output_bmp = Bitmap.createBitmap(input_bmp.getWidth(), input_bmp.getHeight(), Bitmap.Config.ALPHA_8);
+        try {
+            startTime = System.currentTimeMillis();
+            fastsal.Detect(input_bmp, output_bmp);
+            endTime = System.currentTimeMillis();
+            Log.d("runtime", "detect: "+(endTime - startTime));
+
+            startTime = System.currentTimeMillis();
+            attentionView.setImageBitmap(setAlpha(output_bmp));
+            endTime = System.currentTimeMillis();
+            Log.d("runtime", "showing: "+(endTime - startTime));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void startBackgroundThread() {
+        backgroundThread = new HandlerThread("saliency");
+        backgroundThread.start();
+        backgroundHandler = new Handler(backgroundThread.getLooper());
+        synchronized (lock) {
+            runSaliency = true;
+        }
+        backgroundHandler.post(runAsyncSaliencyUpdate);
+    }
+
+    private Runnable runAsyncSaliencyUpdate =
+            new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (lock) {
+                        if (runSaliency) {
+                            runSaliency();
+                        }
+                    }
+                    backgroundHandler.postDelayed(runAsyncSaliencyUpdate, 200);
+                }
+            };
+
+    private void runSaliency() {
+        cameraKitView.captureImage(new CameraKitView.ImageCallback() {
+            @Override
+            public void onImage(CameraKitView cameraKitView, byte[] bytes) {
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                inferenceSaliency(bitmap);
+            }
+        });
+    }
+
+    private void stopBackgroundThread() {
+        backgroundThread.quitSafely();
+        try {
+            backgroundThread.join();
+            backgroundThread = null;
+            backgroundHandler = null;
+            synchronized (lock) {
+                runSaliency = false;
+            }
+        } catch (InterruptedException e) {
+            Log.e("TAG", "Interrupted when stopping background thread", e);
+        }
+    }
+
     static Bitmap setAlpha(Bitmap bitmap){
         int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
         bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
@@ -138,10 +205,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return newBitmap;
-    }
-
-    void startAsyncImageUpdate(){
-        this.handler.postDelayed(this.runnable, 0);
     }
 
     @Override

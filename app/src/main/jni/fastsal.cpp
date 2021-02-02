@@ -49,6 +49,7 @@ Java_com_example_blankproject_FastSal_Init(JNIEnv *env, jobject obj, jbyteArray 
     opt.blob_allocator = &g_blob_pool_allocator;
     opt.workspace_allocator = &g_workspace_pool_allocator;
 
+    ncnn_net.opt = opt;
 
     return JNI_TRUE;
 }
@@ -79,8 +80,8 @@ Java_com_example_blankproject_FastSal_Detect(JNIEnv* env, jobject thiz, jobject 
     ncnn::Extractor ex = ncnn_net.create_extractor();//前向传播
 
     start = clock();
-    ex.input("bitmap", in);
-    ex.extract("bitmapOut", out);
+    ex.input(fastsal_param_id::BLOB_input0, in);
+    ex.extract(fastsal_param_id::BLOB_output0, out);
     end = clock();
     __android_log_print(ANDROID_LOG_DEBUG, "FastSal", "model runtime: %f", ((float)(end-start)*1000/CLOCKS_PER_SEC));
 

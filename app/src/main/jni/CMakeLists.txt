@@ -1,15 +1,11 @@
+project(fastsal)
+
 cmake_minimum_required(VERSION 3.4.1)
 
-include_directories(${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/include/ncnn)
+set(ncnn_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/lib/cmake/ncnn)
+find_package(ncnn REQUIRED)
 
-set(ncnn_lib ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/lib/libncnn.a)
-add_library (ncnn_lib STATIC IMPORTED)
-set_target_properties(ncnn_lib PROPERTIES IMPORTED_LOCATION ${ncnn_lib})
-
-add_library( # Sets the name of the library.
-        fastsal
-        SHARED
-        fastsal.cpp)
+add_library(fastsal SHARED fastsal.cpp)
 
 
 find_library(
@@ -18,6 +14,6 @@ find_library(
 
 target_link_libraries(
         fastsal
-        ncnn_lib
+        ncnn
         jnigraphics
         ${log-lib})
