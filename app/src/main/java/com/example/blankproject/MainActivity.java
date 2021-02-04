@@ -3,27 +3,23 @@ package com.example.blankproject;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
-import android.content.Intent;
 import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Camera;
-import android.graphics.Color;
+//import android.graphics.Camera;
+import android.hardware.Camera;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Message;
+import android.os.SystemClock;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.camerakit.CameraKitView;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.logging.Logger;
@@ -35,10 +31,13 @@ public class MainActivity extends AppCompatActivity {
     private Button switcher;
     private Boolean showAttentionFlag = false;
 
-    private boolean runSaliency;
-    private HandlerThread backgroundThread;
-    private Handler backgroundHandler;
+    private final Handler showAttentionHandler = new Handler();
     private final Object lock = new Object();
+    private Runnable attentionRunnable;
+    private Thread attentionThread;
+
+    private Bitmap cameraFrame;
+    private Bitmap attentionMap;
 
     private int[] ddims = {1, 3, 320, 256};
     private static Handler updateHandler;
@@ -73,14 +72,7 @@ public class MainActivity extends AppCompatActivity {
                 showAttentionFlag = !showAttentionFlag;
                 if(showAttentionFlag){
                     switcher.setText("停止检测");
-                    // startBackgroundThread();
-                    cameraKitView.captureImage(new CameraKitView.ImageCallback() {
-                        @Override
-                        public void onImage(CameraKitView cameraKitView, byte[] bytes) {
-                            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                            inferenceSaliency(bitmap);
-                        }
-                    });
+                     startBackgroundThread();
                 }else{
                     switcher.setText("开始检测");
                     // stopBackgroundThread();
@@ -113,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d("load model", "fastsal load:" + load_result);
     }
 
-    private void inferenceSaliency(Bitmap bmp){
+    private Bitmap inferenceSaliency(Bitmap bmp){
         long startTime;
         long endTime;
         Bitmap rgba = bmp.copy(Bitmap.Config.ARGB_8888, true);
@@ -125,59 +117,10 @@ public class MainActivity extends AppCompatActivity {
             endTime = System.currentTimeMillis();
             Log.d("runtime", "detect: "+(endTime - startTime));
 
-            startTime = System.currentTimeMillis();
-            attentionView.setImageBitmap(setAlpha(output_bmp));
-            endTime = System.currentTimeMillis();
-            Log.d("runtime", "showing: "+(endTime - startTime));
+            return setAlpha(output_bmp);
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private void startBackgroundThread() {
-        backgroundThread = new HandlerThread("saliency");
-        backgroundThread.start();
-        backgroundHandler = new Handler(backgroundThread.getLooper());
-        synchronized (lock) {
-            runSaliency = true;
-        }
-        backgroundHandler.post(runAsyncSaliencyUpdate);
-    }
-
-    private Runnable runAsyncSaliencyUpdate =
-            new Runnable() {
-                @Override
-                public void run() {
-                    synchronized (lock) {
-                        if (runSaliency) {
-                            runSaliency();
-                        }
-                    }
-                    backgroundHandler.postDelayed(runAsyncSaliencyUpdate, 200);
-                }
-            };
-
-    private void runSaliency() {
-        cameraKitView.captureImage(new CameraKitView.ImageCallback() {
-            @Override
-            public void onImage(CameraKitView cameraKitView, byte[] bytes) {
-                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                inferenceSaliency(bitmap);
-            }
-        });
-    }
-
-    private void stopBackgroundThread() {
-        backgroundThread.quitSafely();
-        try {
-            backgroundThread.join();
-            backgroundThread = null;
-            backgroundHandler = null;
-            synchronized (lock) {
-                runSaliency = false;
-            }
-        } catch (InterruptedException e) {
-            Log.e("TAG", "Interrupted when stopping background thread", e);
+            return null;
         }
     }
 
@@ -195,16 +138,39 @@ public class MainActivity extends AppCompatActivity {
         return bitmap;
     }
 
-    static Bitmap convert(Bitmap bitmap){
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        Bitmap newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        for(int i=0; i<height; i++){
-            for(int j=0; j<width; j++){
-                newBitmap.setPixel(j, i, bitmap.getPixel(j, height-i-1));
+    private void startBackgroundThread(){
+        attentionRunnable = new Runnable() {
+            @Override
+            public void run() {
+
+                while(true) {
+                    cameraKitView.captureImage(new CameraKitView.ImageCallback() {
+                        @Override
+                        public void onImage(CameraKitView cameraKitView, byte[] bytes) {
+
+                            cameraFrame = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+
+                            System.out.println("saliency detection finished...");
+                            showAttentionHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    attentionMap = inferenceSaliency(cameraFrame);
+                                    attentionView.setImageBitmap(attentionMap);
+                                }
+                            });
+                        }
+                    });
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
             }
-        }
-        return newBitmap;
+        };
+        attentionThread = new Thread(attentionRunnable);
+        attentionThread.start();
     }
 
     @Override
