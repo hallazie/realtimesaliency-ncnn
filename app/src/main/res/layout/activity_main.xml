@@ -18,28 +18,26 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.98" />
 
-    <com.camerakit.CameraKitView
-        android:id="@+id/camera"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:adjustViewBounds="true"
-        android:keepScreenOn="true"
-        app:camera_facing="back"
-        app:camera_flash="auto"
-        app:camera_focus="continuous"
-        app:camera_permissions="camera"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="MissingConstraints">
+    <androidx.camera.view.PreviewView
+        android:id="@+id/camera_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
-        <ImageView
-            android:id="@+id/attention"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="fitXY"
-            android:contentDescription="preview" />
-    </com.camerakit.CameraKitView>
+    <ImageView
+        android:id="@+id/attention"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="preview" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/oriented"
+        android:textSize="20sp"
+        android:layout_gravity="center"
+        android:text=""
+        android:gravity="center">
+    </TextView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,40 +1,67 @@
 package com.example.blankproject;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProxy;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.camera.view.PreviewView;
+import androidx.core.content.ContextCompat;
+import androidx.lifecycle.LifecycleOwner;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.graphics.Camera;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.media.Image;
 import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 //import android.graphics.Camera;
-import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.util.Log;
+import android.util.Size;
+import android.view.OrientationEventListener;
+import android.view.OrientationListener;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.camerakit.CameraKitView;
+import com.google.common.util.concurrent.ListenableFuture;
 
+import org.jetbrains.annotations.NotNull;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
 
-    private CameraKitView cameraKitView;
+    private static final String[] CAMERA_PERMISSION = new String[]{Manifest.permission.CAMERA};
+    private static final int CAMERA_REQUEST_CODE = 10;
+
+    private TextView orientView;
+    private PreviewView cameraView;
     private ImageView attentionView;
     private Button switcher;
     private Boolean showAttentionFlag = false;
 
-    private final Handler showAttentionHandler = new Handler();
-    private final Object lock = new Object();
-    private Runnable attentionRunnable;
-    private Thread attentionThread;
+    private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
 
     private Bitmap cameraFrame;
     private Bitmap attentionMap;
@@ -44,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
     private FastSal fastsal = new FastSal();
 
 
-    @SuppressLint("HandlerLeak")
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,8 +81,10 @@ public class MainActivity extends AppCompatActivity {
         System.out.println("*********** INFO END ***********");
 
         setContentView(R.layout.activity_main);
-        cameraKitView = findViewById(R.id.camera);
+
+        cameraView = findViewById(R.id.camera_view);
         attentionView = findViewById(R.id.attention);
+        orientView = findViewById(R.id.oriented);
         attentionView.setAlpha(0.5f);
         switcher = findViewById(R.id.switcher);
 
@@ -75,9 +103,8 @@ public class MainActivity extends AppCompatActivity {
                      startBackgroundThread();
                 }else{
                     switcher.setText("开始检测");
-                    // stopBackgroundThread();
-                    // handler.removeCallbacks(runnable);
-                    attentionView.setImageDrawable(null);
+                    // attentionView.setImageDrawable(null);
+                    int retCode = stopBackgroundThread();
                 }
             }
         });
@@ -139,68 +166,153 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startBackgroundThread(){
-        attentionRunnable = new Runnable() {
+        cameraProviderFuture = ProcessCameraProvider.getInstance(this);
+        cameraProviderFuture.addListener(new Runnable() {
             @Override
             public void run() {
-
-                while(true) {
-                    cameraKitView.captureImage(new CameraKitView.ImageCallback() {
-                        @Override
-                        public void onImage(CameraKitView cameraKitView, byte[] bytes) {
-
-                            cameraFrame = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-
-                            System.out.println("saliency detection finished...");
-                            showAttentionHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    attentionMap = inferenceSaliency(cameraFrame);
-                                    attentionView.setImageBitmap(attentionMap);
-                                }
-                            });
-                        }
-                    });
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                try{
+                    ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
+                    bindSaliencyInference(cameraProvider);
+                }catch (Exception e){
+                    e.printStackTrace();
                 }
+            }
+        }, ContextCompat.getMainExecutor(this));
+    }
 
+    private int stopBackgroundThread(){
+        try{
+            cameraProviderFuture.cancel(true);
+            Toast.makeText(this, "stop success...", Toast.LENGTH_SHORT).show();
+        }catch (Exception e){
+            Toast.makeText(this, "stop failed, you may need to restart the app...", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+            return -1;
+        }
+        return 0;
+    }
+
+    private void bindOrientAnalysis(@NotNull ProcessCameraProvider cameraProvider){
+        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder().setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(this), new ImageAnalysis.Analyzer(){
+            @Override
+            public void analyze(@NotNull ImageProxy image){
+                image.close();
+            }
+        });
+
+        OrientationEventListener orientationEventListener = new OrientationEventListener(this) {
+            @SuppressLint("SetTextI18n")
+            @Override
+            public void onOrientationChanged(int orientation) {
+                orientView.setText(Integer.toString(orientation));
             }
         };
-        attentionThread = new Thread(attentionRunnable);
-        attentionThread.start();
+        orientationEventListener.enable();
+        Preview preview = new Preview.Builder().build();
+        CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build();
+        preview.setSurfaceProvider(cameraView.createSurfaceProvider());
+
+        cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, imageAnalysis, preview);
+
+    }
+
+    private void bindSaliencyInference(@NotNull ProcessCameraProvider cameraProvider){
+        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder().setTargetResolution(new Size(480, 640)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(this), new ImageAnalysis.Analyzer(){
+
+            @Override
+            public void analyze(@NotNull ImageProxy image){
+                try{
+
+                    Bitmap bitmapImage = convertImageProxyToBitmap(image);
+                    if(bitmapImage != null){
+                        Bitmap saliencyMap = inferenceSaliency(bitmapImage);
+                        attentionView.setImageBitmap(saliencyMap);
+                    }else{
+                        System.out.println("------------------- bitmap is null -------------------");
+                        orientView.setText("NULL Bitmap");
+                    }
+
+                    image.close();
+
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Preview preview = new Preview.Builder().build();
+        CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build();
+        preview.setSurfaceProvider(cameraView.createSurfaceProvider());
+
+        cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, imageAnalysis, preview);
+    }
+
+    @SuppressLint("UnsafeExperimentalUsageError")
+    private Bitmap convertImageProxyToBitmap(ImageProxy image) {
+        ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+        ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+        ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
+
+        int ySize = yBuffer.remaining();
+        int uSize = uBuffer.remaining();
+        int vSize = vBuffer.remaining();
+
+        byte[] bytes = new byte[ySize + uSize + vSize];
+        yBuffer.get(bytes, 0, ySize);
+        uBuffer.get(bytes, ySize + vSize, uSize);
+        vBuffer.get(bytes, ySize, vSize);
+
+        YuvImage yuvImage = new YuvImage(bytes, ImageFormat.NV21, image.getWidth(), image.getHeight(), null);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        yuvImage.compressToJpeg(new Rect(0, 0, yuvImage.getWidth(), yuvImage.getHeight()), 100, outputStream);
+        byte[] imageBytes = outputStream.toByteArray();
+        Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+        return rotateBitmap(bitmap, 90);
+
+    }
+
+    private Bitmap rotateBitmap(Bitmap origin, float alpha) {
+        if (origin == null) {
+            return null;
+        }
+        int width = origin.getWidth();
+        int height = origin.getHeight();
+        Matrix matrix = new Matrix();
+        matrix.setRotate(alpha);
+        // 围绕原地进行旋转
+        Bitmap newBM = Bitmap.createBitmap(origin, 0, 0, width, height, matrix, false);
+        if (newBM.equals(origin)) {
+            return newBM;
+        }
+        origin.recycle();
+        return newBM;
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        cameraKitView.onStart();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        cameraKitView.onResume();
     }
 
     @Override
     protected void onPause() {
-        cameraKitView.onPause();
         super.onPause();
     }
 
     @Override
     protected void onStop() {
-        cameraKitView.onStop();
         super.onStop();
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NotNull String[] permissions, @NotNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        cameraKitView.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
 }
